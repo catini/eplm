@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polimorfismo com Movimentos</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
+    body {
+      font-family: Arial, sans-serif;
+      background-color: white;
+      color: black;
+      margin: 0;
+      padding: 0;
+    }
+    #webcam-container, #info-container, #code-container {
+      width: 700px;
+      margin: 10px auto;
+      text-align: center;
+    }
+    #canvas {
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 700px;
+    }
+    #info-container {
+      padding: 15px;
+      font-size: 18px;
+      background-color: #333;
+      color: white;
+      border-radius: 8px;
+      text-align: justify;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      box-sizing: border-box;
+      overflow: hidden;
+      position: relative;
+    }
+    #movement-banner {
+      background-color: #444;
+      color: #fff;
+      padding: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 8px;
+      margin-top: 15px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      display: none;
+      transition: background-color 0.3s ease;
+    }
+    #code-container {
+      padding: 15px;
+      font-size: 18px;
+      background-color: #222;
+      color: white;
+      border-radius: 8px;
+      text-align: left;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      box-sizing: border-box;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      position: relative;
+    }
+    .php-keyword {
+      color: #FF6347;
+      font-weight: bold;
+    }
+    .php-class {
+      color: #1E90FF;
+      font-weight: bold;
+    }
+    .php-method {
+      color: #32CD32;
+      font-weight: bold;
+    }
+    .php-string {
+      color: #FFD700;
+    }
+    #highlight {
+      color: #FFD700;
+      font-weight: bold;
+    }
+    .key-highlight-i {
+      color: #39ff14;
+      font-weight: bold;
+    }
+    .key-highlight-r {
+      color: #ff5733;
+      font-weight: bold;
+    }
+
+    /* Classe de destaque da linha de código */
+    .highlighted-line {
+      background-color: #39ff14;
+      color: #000;
+      font-weight: bold;
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 4px;
+      transition: background-color 0.5s ease-in-out;
+    }
+
+    @keyframes pulseHighlight {
+      0% { background-color: #39ff14; }
+      50% { background-color: #7fff58; }
+      100% { background-color: #39ff14; }
+    }
+
+    .highlighted-line {
+      animation: pulseHighlight 1s ease-in-out 2;
+    }
+
+    /* Estilo para a explicação do código adicional */
+    #code-explanation {
+      margin-top: 15px;
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 16px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      text-align: justify;
+    }
+  </style>
+</head>
+<body>
+  <div id="webcam-container">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="info-container">
+    <span id="info-text">
+      Pressione a tecla <span class="key-highlight-i">[ i ]</span> para iniciar a detecção de movimentos.<br>
+      Pressione a tecla <span class="key-highlight-r">[ r ]</span> para reiniciar o sistema.<br><br>
+      <strong id="highlight">Polimorfismo</strong> é a capacidade de usar um mesmo método de maneiras diferentes, dependendo de quem está chamando esse método.
+    </span>
+    <div id="movement-banner"></div>
+  </div>
+  <div id="code-container">
+    <strong>Código PHP:</strong>
+    <div id="code-content">
+      Aguardando detecção...
+    </div>
+    <!-- Local para a explicação adicional do código -->
+    <div id="code-explanation" style="display:none;"></div>
+  </div>
+
+  <script>
+    const modelURL = "https://teachablemachine.withgoogle.com/models/oY8E27NFS/";
+    let model, webcam, ctx, maxPredictions;
+    let currentLabel = "Aguardando...";
+    let currentProbability = 0;
+    let previousLabel = "";
+    let isDetecting = false;
+
+    let detectedLabel = "";
+    let detectionStartTime = null;
+    let bannerTimeout;
+    let bannerInterval; 
+
+    // Mensagens explicativas adicionais para cada movimento detectado
+    const explanationMessages = {
+      "braco_direito": "Você levantou o braço direito! Observe que a classe LevantarBracoDireito sobrescreve o método executarAcao da classe mãe Movimento, mostrando polimorfismo.",
+      "braco_esquerdo": "Você levantou o braço esquerdo! A classe LevantarBracoEsquerdo demonstra o método executarAcao com comportamento próprio.",
+      "levantar_bracos": "Você levantou ambos os braços! A classe LevantarBracos exibe outro exemplo de polimorfismo do método executarAcao.",
+      "palma": "Você mostrou as palmas das mãos! A classe PalmaDaMao redefine executarAcao de forma única.",
+      "mostrar_musculo": "Você mostrou os músculos! A classe MostrarMusculos também aplica o polimorfismo no método executarAcao.",
+      "neutro": "Você está em posição neutra! Esse é o comportamento genérico, representado pela classe mãe Movimento."
+    };
+
+    // Explicações detalhadas sobre as diferenças no código para cada movimento
+    const codeExplanations = {
+      "neutro": "Aqui temos apenas a classe mãe <span class='php-class'>Movimento</span> com o método <span class='php-method'>executarAcao()</span> exibindo uma mensagem genérica. Esta é a base para demonstrar o polimorfismo mais tarde.",
+      "braco_direito": "Neste caso, a classe filha <span class='php-class'>LevantarBracoDireito</span> sobrescreve o método <span class='php-method'>executarAcao()</span>, alterando a saída de \"Ação genérica\" para \"Levantando o braço direito.\" Assim, o mesmo método ganha um comportamento diferente na subclasse.",
+      "braco_esquerdo": "A classe filha <span class='php-class'>LevantarBracoEsquerdo</span> sobrescreve o método <span class='php-method'>executarAcao()</span>, exibindo a mensagem \"Levantando o braço esquerdo\". Isso reforça que o mesmo método pode gerar saídas distintas, dependendo da classe que o implementa.",
+      "levantar_bracos": "A classe <span class='php-class'>LevantarBracos</span> também sobrescreve o método <span class='php-method'>executarAcao()</span>, dessa vez exibindo \"Levantando ambos os braços.\" Com isso, observamos que várias subclasses podem implementar o mesmo método de forma especializada.",
+      "palma": "A classe <span class='php-class'>PalmaDaMao</span> redefine o método <span class='php-method'>executarAcao()</span> para exibir \"Mostrando as palmas das mãos\". Isso ilustra a flexibilidade do polimorfismo, já que cada subclasse pode adequar o método para seu contexto.",
+      "mostrar_musculo": "A classe <span class='php-class'>MostrarMusculos</span> demonstra mais uma variação do método <span class='php-method'>executarAcao()</span>. Em vez da mensagem genérica, agora temos \"Mostrando os músculos.\" Esse é o cerne do polimorfismo: um mesmo método, implementações diferentes."
+    };
+
+    async function init() {
+      const modelURL_full = modelURL + "model.json";
+      const metadataURL = modelURL + "metadata.json";
+      model = await tmPose.load(modelURL_full, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      const canvas = document.getElementById("canvas");
+      canvas.width = 700;
+      canvas.height = 520;
+      ctx = canvas.getContext("2d");
+
+      webcam = new tmPose.Webcam(700, 520, true);
+      await webcam.setup();
+      await webcam.play();
+
+      document.addEventListener("keydown", handleKeyPress);
+
+      loop();
+    }
+
+    function handleKeyPress(event) {
+      if (event.key.toLowerCase() === "i") {
+        isDetecting = true;
+        updateInfo("Pressione a tecla <span class='key-highlight-i'>[ i ]</span> para iniciar a detecção de movimentos.<br>Pressione a tecla <span class='key-highlight-r'>[ r ]</span> para reiniciar o sistema. <br><br>Detecção de movimentos iniciada. Aguarde...");
+      } else if (event.key.toLowerCase() === "r") {
+        resetSystem();
+      }
+    }
+
+    async function loop() {
+      webcam.update();
+      if (isDetecting) {
+        await predict();
+      } else {
+        drawFrame();
+      }
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const { pose, posenetOutput } = await model.estimatePose(webcam.canvas);
+      const prediction = await model.predict(posenetOutput);
+
+      let maxProbability = 0;
+      let label = "Aguardando...";
+
+      for (let i = 0; i < maxPredictions; i++) {
+        if (prediction[i].probability > maxProbability) {
+          maxProbability = prediction[i].probability;
+          label = prediction[i].className;
+        }
+      }
+
+      if (maxProbability > 0.6) {
+        if (label !== detectedLabel) {
+          detectedLabel = label;
+          detectionStartTime = new Date().getTime();
+        } else {
+          const elapsedTime = new Date().getTime() - detectionStartTime;
+          if (elapsedTime >= 3000 && label !== previousLabel) {
+            previousLabel = label;
+            let baseMessage = "Pressione a tecla <span class='key-highlight-i'>[ i ]</span> para iniciar a detecção de movimentos.<br>Pressione a tecla <span class='key-highlight-r'>[ r ]</span> para reiniciar o sistema.<br><br>Observe como o método <span class='php-method'>executarAcao()</span> adapta seu comportamento de acordo com os movimentos detectados.";
+            const explanation = explanationMessages[label] || "";
+            baseMessage += "<br><strong id='highlight'>Polimorfismo</strong>: " + explanation;
+
+            updateInfo(baseMessage); 
+            updateCodeContainer(label);
+            triggerBanner(label);
+          }
+        }
+      } else {
+        detectedLabel = "";
+        detectionStartTime = null;
+      }
+
+      drawPose(pose);
+    }
+
+    function resetSystem() {
+      isDetecting = false;
+      detectedLabel = "";
+      detectionStartTime = null;
+      currentLabel = "Aguardando...";
+      currentProbability = 0;
+      previousLabel = "";
+      updateInfo("Pressione a tecla <span class='key-highlight-i'>[ i ]</span> para iniciar a detecção de movimentos.<br>Pressione a tecla <span class='key-highlight-r'>[ r ]</span> para reiniciar o sistema. <br><br><strong id=highlight>Polimorfismo</strong> é a capacidade de usar um mesmo método de maneiras diferentes, dependendo de quem está chamando esse método.");
+      updateCodeContainer("");
+      document.getElementById("movement-banner").style.display = "none";
+    }
+
+    function updateInfo(message) {
+      document.getElementById("info-text").innerHTML = message;
+    }
+
+    function updateCodeContainer(label) {
+      const codeContent = document.getElementById("code-content");
+      const codeExplanationDiv = document.getElementById("code-explanation");
+
+      const codeTemplates = {
+        "Aguardando...": "Aguardando detecção...",
+        "neutro": `
+          &lt;?php<br>
+          <span class="php-keyword">class</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string">"Ação genérica do movimento."</span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <br>
+          <span class="php-comment">// Criando objeto e chamando método</span><br>
+          <span class="php-keyword">$movimento</span> = <span class="php-keyword">new</span> <span class="php-class">Movimento</span>();<br>
+          <span class="php-keyword">$movimento</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Ação genérica do movimento.</span><br>
+          ?&gt;<br>
+        `,
+        "braco_direito": `
+          &lt;?php<br>
+          <span class="php-keyword">class</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string">"Ação genérica do movimento."</span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <span class="php-keyword">class</span> <span class="php-class">LevantarBracoDireito</span> <span class="php-keyword">extends</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string"><span class="highlighted-line">"Levantando o braço direito."</span></span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <br>
+          <span class="php-comment">// Criando objetos e chamando métodos</span><br>
+          <span class="php-keyword">$movimento</span> = <span class="php-keyword">new</span> <span class="php-class">Movimento</span>();<br>
+          <span class="php-keyword">$bracoDireito</span> = <span class="php-keyword">new</span> <span class="php-class">LevantarBracoDireito</span>();<br>
+          <span class="php-keyword">$movimento</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Ação genérica do movimento.</span><br>
+          <span class="php-keyword">$bracoDireito</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Levantando o braço direito.</span><br>
+          ?&gt;<br>
+        `,
+        "braco_esquerdo": `
+          &lt;?php<br>
+          <span class="php-keyword">class</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string">"Ação genérica do movimento."</span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <span class="php-keyword">class</span> <span class="php-class">LevantarBracoEsquerdo</span> <span class="php-keyword">extends</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string"><span class="highlighted-line">"Levantando o braço esquerdo."</span></span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <br>
+          <span class="php-comment">// Criando objetos e chamando métodos</span><br>
+          <span class="php-keyword">$movimento</span> = <span class="php-keyword">new</span> <span class="php-class">Movimento</span>();<br>
+          <span class="php-keyword">$bracoEsquerdo</span> = <span class="php-keyword">new</span> <span class="php-class">LevantarBracoEsquerdo</span>();<br>
+          <span class="php-keyword">$movimento</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Ação genérica do movimento.</span><br>
+          <span class="php-keyword">$bracoEsquerdo</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Levantando o braço esquerdo.</span><br>
+          ?&gt;<br>
+        `,
+        "levantar_bracos": `
+          &lt;?php<br>
+          <span class="php-keyword">class</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string">"Ação genérica do movimento."</span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <span class="php-keyword">class</span> <span class="php-class">LevantarBracos</span> <span class="php-keyword">extends</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string"><span class="highlighted-line">"Levantando ambos os braços."</span></span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <br>
+          <span class="php-comment">// Criando objetos e chamando métodos</span><br>
+          <span class="php-keyword">$movimento</span> = <span class="php-keyword">new</span> <span class="php-class">Movimento</span>();<br>
+          <span class="php-keyword">$levantarBracos</span> = <span class="php-keyword">new</span> <span class="php-class">LevantarBracos</span>();<br>
+          <span class="php-keyword">$movimento</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Ação genérica do movimento.</span><br>
+          <span class="php-keyword">$levantarBracos</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Levantando ambos os braços.</span><br>
+          ?&gt;<br>
+        `,
+        "palma": `
+          &lt;?php<br>
+          <span class="php-keyword">class</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string">"Ação genérica do movimento."</span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <span class="php-keyword">class</span> <span class="php-class">PalmaDaMao</span> <span class="php-keyword">extends</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string"><span class="highlighted-line">"Mostrando as palmas das mãos."</span></span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <br>
+          <span class="php-comment">// Criando objetos e chamando métodos</span><br>
+          <span class="php-keyword">$movimento</span> = <span class="php-keyword">new</span> <span class="php-class">Movimento</span>();<br>
+          <span class="php-keyword">$palma</span> = <span class="php-keyword">new</span> <span class="php-class">PalmaDaMao</span>();<br>
+          <span class="php-keyword">$movimento</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Ação genérica do movimento.</span><br>
+          <span class="php-keyword">$palma</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Mostrando as palmas das mãos.</span><br>
+          ?&gt;<br>
+        `,
+        "mostrar_musculo": `
+          &lt;?php<br>
+          <span class="php-keyword">class</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string">"Ação genérica do movimento."</span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <span class="php-keyword">class</span> <span class="php-class">MostrarMusculos</span> <span class="php-keyword">extends</span> <span class="php-class">Movimento</span> {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">public</span> <span class="php-keyword">function</span> <span class="php-method">executarAcao</span>() {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="php-keyword">echo</span> <span class="php-string"><span class="highlighted-line">"Mostrando os músculos."</span></span>;<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+          }<br>
+          <br>
+          <span class="php-comment">// Criando objetos e chamando métodos</span><br>
+          <span class="php-keyword">$movimento</span> = <span class="php-keyword">new</span> <span class="php-class">Movimento</span>();<br>
+          <span class="php-keyword">$musculos</span> = <span class="php-keyword">new</span> <span class="php-class">MostrarMusculos</span>();<br>
+          <span class="php-keyword">$movimento</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Ação genérica do movimento.</span><br>
+          <span class="php-keyword">$musculos</span><span class="php-method">->executarAcao()</span>; <span class="php-comment">// Saída: Mostrando os músculos.</span><br>
+          ?&gt;<br>
+        `
+      };
+
+      codeContent.innerHTML = codeTemplates[label] || "Nenhuma classe detectada.";
+
+      // Atualizar explicação do código se houver
+      if (codeExplanations[label]) {
+        codeExplanationDiv.innerHTML = codeExplanations[label];
+        codeExplanationDiv.style.display = "block";
+      } else {
+        codeExplanationDiv.style.display = "none";
+      }
+    }
+
+    function triggerBanner(label) {
+      clearTimeout(bannerTimeout); 
+      clearInterval(bannerInterval); 
+      const banner = document.getElementById("movement-banner");
+      const messages = {
+        "braco_direito": "Movimento detectado: Levantar o braço direito.",
+        "palma": "Movimento detectado: Mostrar as palmas das mãos.",
+        "braco_esquerdo": "Movimento detectado: Levantar o braço esquerdo.",
+        "levantar_bracos": "Movimento detectado: Levantar ambos os braços.",
+        "mostrar_musculo": "Movimento detectado: Mostrar os Músculos.",
+        "neutro": "Movimento detectado: Sem movimentos, posição neutra."
+      };
+      banner.textContent = messages[label] || `Movimento detectado: ${label}`;
+      banner.style.display = "block";
+      let isGreen = true; 
+
+      bannerInterval = setInterval(() => {
+        banner.style.backgroundColor = isGreen ? "#39ff14" : "#444";
+        isGreen = !isGreen; 
+      }, 300);
+    
+      bannerTimeout = setTimeout(() => {
+        clearInterval(bannerInterval);
+        banner.style.backgroundColor = "#444";
+      }, 3000);
+    }
+
+    function drawFrame() {
+      if (webcam.canvas) {
+        ctx.drawImage(webcam.canvas, 0, 0);
+      }
+    }
+
+    function drawPose(pose) {
+      if (webcam.canvas) {
+        ctx.drawImage(webcam.canvas, 0, 0);
+        if (pose) {
+          const minPartConfidence = 0.5;
+          for (const keypoint of pose.keypoints) {
+            if (keypoint.score > minPartConfidence) {
+              ctx.fillStyle = "#CF0E0E";
+              ctx.beginPath();
+              ctx.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI);
+              ctx.fill();
+            }
+          }
+          tmPose.drawSkeleton(pose.keypoints, minPartConfidence, ctx);
+        }
+      }
+    }
+
+    // Removida a função speak e suas chamadas
+
+    window.onload = init;
+  </script>
+</body>
+</html>

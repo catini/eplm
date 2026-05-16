@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<div id="eplm-heranca-2024" class="eplm-heranca-component">
+  <!-- Bibliotecas p5.js e ml5.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.sound.min.js"></script>
+  <script src="https://unpkg.com/ml5@0.5.0/dist/ml5.min.js"></script>
+
+  <!-- Container principal centralizado -->
+  <div class="eplm-main-container">
+    <!-- Container do vídeo + loader (inicial) -->
+    <div id="eplm-webcam-container" class="eplm-webcam-container">
+      <div class="eplm-loader-container" id="eplm-loading-screen">
+        <div class="eplm-loader"></div>
+        <div class="eplm-loading-text">Carregando sistema...</div>
+      </div>
+    </div>
+
+    <!-- Primeiro frame: infos fixas -->
+    <div id="eplm-info-container" class="eplm-info-container">
+      <!-- Arte EPLM-HERANÇA -->
+      <div id="eplm-title-container" class="eplm-title-container">
+        <span class="eplm-letter">E</span>
+        <span class="eplm-letter">P</span>
+        <span class="eplm-letter">L</span>
+        <span class="eplm-letter">M</span>
+        <span class="eplm-letter">-</span>
+        <span class="eplm-letter">H</span>
+        <span class="eplm-letter">E</span>
+        <span class="eplm-letter">R</span>
+        <span class="eplm-letter">A</span>
+        <span class="eplm-letter">N</span>
+        <span class="eplm-letter">Ç</span>
+        <span class="eplm-letter">A</span>
+      </div>
+
+      <!-- Texto fixo: instruções + Herança c/ efeito -->
+      <p id="eplm-instructions" class="eplm-instructions">
+        Pressione a tecla <span class="eplm-key-highlight-i">[ i ]</span> para iniciar a detecção de imagens.<br>
+        Pressione a tecla <span class="eplm-key-highlight-r">[ r ]</span> para reiniciar o sistema.<br><br>
+        <span class="eplm-shining-heritage">Herança</span> é a capacidade de criar novas classes que herdam características de classes existentes (classes pai).
+      </p>
+    </div>
+
+    <!-- Segundo frame (dinâmico) -->
+    <div id="eplm-feed-container" class="eplm-feed-container">
+      <p id="eplm-feed-text" class="eplm-feed-text"></p>
+    </div>
+  </div>
+
+  <style>
+    .eplm-heranca-component {
+      all: initial;
+      font-family: Arial, sans-serif;
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .eplm-main-container {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .eplm-heranca-component * {
+      box-sizing: border-box;
+    }
+
+    .eplm-webcam-container {
+      width: 700px;
+      height: 520px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      background-color: #fff;
+      position: relative;
+    }
+
+    .eplm-loader-container {
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .eplm-loader {
+      width: 48px; 
+      height: 48px;
+      border: 5px solid #FFF;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      animation: eplm-rotation 1s linear infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes eplm-rotation {
+      0%   { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .eplm-loading-text {
+      color: white;
+      font-size: 18px;
+      font-family: Arial, sans-serif;
+    }
+
+    .eplm-info-container {
+      width: 700px;
+      background-color: #444;
+      color: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 1.4em;
+    }
+
+    .eplm-title-container {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .eplm-letter {
+      font-size: 24px;
+      font-weight: bold;
+      animation: eplm-colorChange 2s infinite alternate;
+    }
+
+    @keyframes eplm-colorChange {
+      0%   { color: #ff0000; }
+      20%  { color: #ff9900; }
+      40%  { color: #ffff00; }
+      60%  { color: #00ff00; }
+      80%  { color: #00d5ff; }
+      100% { color: #ffffff; }
+    }
+
+    .eplm-shining-heritage {
+      animation: eplm-heritageBlink 1.5s infinite alternate;
+    }
+
+    @keyframes eplm-heritageBlink {
+      0% { color: #ffffff; text-shadow: 0 0 6px #ffffff; }
+      100% { color: #f0ff00; text-shadow: 0 0 10px #f0ff00; }
+    }
+
+    .eplm-key-highlight-i { color: #39ff14; font-weight: bold; }
+    .eplm-key-highlight-r { color: #ff5733; font-weight: bold; }
+
+    .eplm-feed-container {
+      width: 700px;
+      display: none;
+      background-color: #444;
+      color: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 1.4em;
+    }
+
+    .eplm-feed-text {
+      margin: 0;
+      padding-top: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: normal;
+    }
+
+    .eplm-feed-text ul {
+      list-style-type: disc;
+      padding-left: 40px;
+      margin-top: 10px;
+    }
+
+    .eplm-feed-text li {
+      margin-bottom: 8px;
+    }
+
+    .eplm-feed-text strong {
+      color: rgb(0, 255, 0);
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+  <script>
+    // Namespace para evitar conflitos
+    window.EPLM = {
+      video: null,
+      classifier: null,
+      bellSound: null,
+      label: "aguardando",
+      tarja: "aguardando",
+      previousLabel: "",
+      isLabelGreen: false,
+      blinkCount: 0,
+      blinking: false,
+      blinkSpeed: 20,
+      isDetecting: false,
+      feed: "",
+      currentText: "",
+      charIndex: 0,
+      typingSpeed: 50,
+      videoWidth: 700,
+      videoHeight: 520,
+      modelURL: 'https://teachablemachine.withgoogle.com/models/UnaERPz-S/',
+      canvas: null,
+      p5Instance: null
+    };
+
+    // Funções do p5.js no escopo global
+    window.preload = function() {
+      window.EPLM.classifier = ml5.imageClassifier(window.EPLM.modelURL + 'model.json', modelReady);
+      window.EPLM.bellSound = loadSound('./bell.mp3');
+    }
+
+    window.setup = function() {
+      window.EPLM.canvas = createCanvas(window.EPLM.videoWidth, window.EPLM.videoHeight);
+      window.EPLM.canvas.parent('eplm-webcam-container');
+      
+      window.EPLM.video = createCapture(VIDEO);
+      window.EPLM.video.size(window.EPLM.videoWidth, window.EPLM.videoHeight);
+      window.EPLM.video.hide();
+
+      // Adiciona listeners de teclado globais
+      window.addEventListener('keydown', handleKeyPress);
+    }
+
+    window.draw = function() {
+      if (!window.EPLM.video) return;
+      
+      image(window.EPLM.video, 0, 0, window.EPLM.videoWidth, window.EPLM.videoHeight);
+
+      if (window.EPLM.isLabelGreen) {
+        fill(0, 255, 0);
+      } else if (window.EPLM.blinking && window.EPLM.blinkCount < 4) {
+        if (frameCount % (window.EPLM.blinkSpeed * 2) < window.EPLM.blinkSpeed) {
+          fill(0);
+        } else {
+          fill(0, 255, 0);
+        }
+      } else {
+        fill(0);
+      }
+
+      rect(0, height - 50, width, 50);
+      textSize(32);
+      fill(255);
+      textAlign(CENTER, CENTER);
+      noStroke();
+      text(window.EPLM.tarja, width / 2, height - 25);
+
+      if (window.EPLM.blinking && window.EPLM.blinkCount >= 4) {
+        window.EPLM.isLabelGreen = true;
+        window.EPLM.blinking = false;
+      }
+      if (window.EPLM.blinking && frameCount % (window.EPLM.blinkSpeed * 2) === 0) {
+        window.EPLM.blinkCount++;
+      }
+    }
+
+    // Funções auxiliares
+    function showLoader(msg = "Carregando...") {
+      const loaderEl = document.getElementById('eplm-loading-screen');
+      loaderEl.style.display = 'flex';
+      loaderEl.querySelector('.eplm-loading-text').innerText = msg;
+    }
+
+    function hideLoader() {
+      document.getElementById('eplm-loading-screen').style.display = 'none';
+    }
+
+    function modelReady() {
+      console.log('Modelo carregado!');
+      hideLoader();
+    }
+
+    function handleKeyPress(event) {
+      console.log('Tecla pressionada:', event.key); // Debug
+      
+      let key = event.key.toLowerCase();
+      
+      if (key === 'i' && !window.EPLM.isDetecting) {
+        console.log('Iniciando detecção...'); // Debug
+        showLoader("Iniciando detecção...");
+        setTimeout(() => {
+          window.EPLM.isDetecting = true;
+          classifyVideo();
+          hideLoader();
+        }, 1000);
+      }
+      else if (key === 'r') {
+        console.log('Reiniciando sistema...'); // Debug
+        showLoader("Reiniciando...");
+        setTimeout(() => {
+          resetSystem();
+          hideLoader();
+        }, 1000);
+      }
+    }function classifyVideo() {
+      if (!window.EPLM.isDetecting) return;
+      window.EPLM.classifier.classify(window.EPLM.video, gotResults);
+    }
+
+    function resetSystem() {
+      console.log("Sistema reiniciado!");
+      window.EPLM.isDetecting = false;
+      window.EPLM.label = "aguardando";
+      window.EPLM.tarja = "aguardando";
+      window.EPLM.previousLabel = "";
+      window.EPLM.isLabelGreen = false;
+      window.EPLM.blinkCount = 0;
+      window.EPLM.blinking = false;
+
+      window.EPLM.feed = "";
+      window.EPLM.currentText = "";
+      window.EPLM.charIndex = 0;
+      document.getElementById('eplm-feed-text').innerHTML = "";
+      document.getElementById('eplm-feed-container').style.display = 'none';
+    }
+
+    function gotResults(error, results) {
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      if (results[0].confidence > 0.8) {
+        window.EPLM.label = results[0].label;
+        if (window.EPLM.label === "humano" || window.EPLM.label === "background") {
+          classifyVideo();
+          return;
+        }
+
+        if (window.EPLM.label !== window.EPLM.previousLabel) {
+          window.EPLM.bellSound.play();
+          window.EPLM.isLabelGreen = false;
+          window.EPLM.blinkCount = 0;
+          window.EPLM.blinking = true;
+
+          if (window.EPLM.label === "gato") {
+            fetchGptResponse("Gato");
+            window.EPLM.tarja = "Gato";
+          } else if (window.EPLM.label === "tubarao") {
+            fetchGptResponse("Tubarão");
+            window.EPLM.tarja = "Tubarão";
+          } else if (window.EPLM.label === "carro") {
+            fetchGptResponse("Carro");
+            window.EPLM.tarja = "Carro";
+          } else if (window.EPLM.label === "moto") {
+            fetchGptResponse("Moto");
+            window.EPLM.tarja = "Moto";
+          }
+          window.EPLM.previousLabel = window.EPLM.label;
+        }
+      }
+      classifyVideo();
+    }
+
+    function setFeedMessage(msg) {
+      document.getElementById('eplm-feed-container').style.display = 'block';
+      window.EPLM.feed = msg;
+      window.EPLM.currentText = "";
+      window.EPLM.charIndex = 0;
+      document.getElementById('eplm-feed-text').innerHTML = "";
+      typeWriterEffect();
+    }
+
+    function typeWriterEffect() {
+      if (window.EPLM.charIndex < window.EPLM.feed.length) {
+        window.EPLM.currentText += window.EPLM.feed.charAt(window.EPLM.charIndex);
+        document.getElementById('eplm-feed-text').innerHTML = window.EPLM.currentText;
+        window.EPLM.charIndex++;
+        window.scrollTo(0, document.body.scrollHeight);
+        setTimeout(typeWriterEffect, window.EPLM.typingSpeed);
+      }
+    }
+
+    function fetchGptResponse(character) {
+      const gptResponse = {
+        "Gato": `
+          O <strong>Gato</strong> herda da classe <strong>Animal</strong>, pois ele compartilha características comuns a todos os animais, mas também possui características próprias.
+          <ul>
+              <li><strong>Atributos herdados:</strong> Nome e Espécie - O gato, como qualquer outro animal, tem um nome e uma espécie.</li>
+              <li><strong>Métodos herdados:</strong> Mover-se e Comer - Todo animal, incluindo o gato, pode se mover e precisa se alimentar.</li>
+          </ul>
+          <strong>O que torna o Gato especial:</strong>
+          <ul>
+              <li><strong>Atributo:</strong> Cor do pelo - Cada gato pode ter uma cor de pelo diferente.</li>
+              <li><strong>Método específico:</strong> Miar - O gato é conhecido por miar, algo que nem todos os animais fazem.</li>
+          </ul>
+        `,
+
+        "Tubarão": `
+          O <strong>Tubarão</strong> herda da classe <strong>Animal</strong>, pois ele possui características de um animal, mas também tem suas peculiaridades.
+          <ul>
+              <li><strong>Atributos herdados:</strong> Nome e Espécie - Assim como outros animais, o tubarão possui um nome e uma espécie.</li>
+              <li><strong>Métodos herdados:</strong> Mover-se e Comer - O tubarão, como qualquer animal, precisa se alimentar e se mover.</li>
+          </ul>
+          <strong>O que torna o Tubarão especial:</strong>
+          <ul>
+              <li><strong>Atributo:</strong> Tamanho - Tubarões podem ter tamanhos muito variados.</li>
+              <li><strong>Método específico:</strong> Atacar - Um comportamento típico de um predador marinho.</li>
+          </ul>
+        `,
+
+        "Carro": `
+          O <strong>Carro</strong> herda da classe <strong>Veículo</strong> porque é um meio de transporte com características comuns a veículos, mas também possui suas próprias características.
+          <ul>
+              <li><strong>Atributos herdados:</strong> Marca e Modelo - Todo carro tem uma marca (como Fiat, Ford) e um modelo específico.</li>
+              <li><strong>Métodos herdados:</strong> Mover e Parar - Como qualquer veículo, o carro pode se mover e parar.</li>
+          </ul>
+          <strong>O que torna o Carro especial:</strong>
+          <ul>
+              <li><strong>Atributo:</strong> Número de portas - Diferente de outros veículos, os carros podem ter várias portas.</li>
+              <li><strong>Método específico:</strong> Acelerar - Permite que o carro se mova mais rápido.</li>
+          </ul>
+        `,
+
+        "Moto": `
+          A <strong>Moto</strong> herda da classe <strong>Veículo</strong> porque também é um meio de transporte, mas com algumas características próprias.
+          <ul>
+              <li><strong>Atributos herdados:</strong> Marca e Modelo - Como qualquer veículo, a moto tem uma marca e um modelo.</li>
+              <li><strong>Métodos herdados:</strong> Mover e Parar - A moto também pode se mover e parar.</li>
+          </ul>
+          <strong>O que torna a Moto especial:</strong>
+          <ul>
+              <li><strong>Atributo:</strong> Cilindradas - Representa a potência do motor da moto.</li>
+              <li><strong>Método específico:</strong> Empinar - Um truque que é exclusivo das motos.</li>
+          </ul>
+        `
+      };
+
+      if (gptResponse[character]) {
+        setFeedMessage(gptResponse[character]);
+      }
+    }
+
+    // Inicializa quando o DOM estiver pronto
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM carregado, iniciando EPLM...');
+    });
+  </script>
+</div>
+</body>
+</html>
